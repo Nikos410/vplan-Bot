@@ -1,155 +1,131 @@
+package org.nikos.vplanbot;
 /**
+ * Danke an Sebastian K. !
+ *
  * Zweck dieses Bots ist es, den aktuellen Vertretungsplan herunterzuladen und zu ueberpruefen,
  * ob die Datei in den letzten 10 Minuten geaendert wurde.
- *
+ * <p>
  * Wichtig: es muss sich eine Datei namens "vplan.pdf" im Verzeichnis befinden!
+ * </p>
  */
-import twitter4j.TwitterException;
 
-import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.io.OutputStream;
+import org.nikos.vplanbot.org.nikos.vplanbot.checksum.ChecksumComparator;
+import org.nikos.vplanbot.org.nikos.vplanbot.checksum.MD5FileDigestor;
+import org.nikos.vplanbot.org.nikos.vplanbot.download.FileDownloader;
+import org.nikos.vplanbot.org.nikos.vplanbot.notification.GMailNotificationService;
+import org.nikos.vplanbot.org.nikos.vplanbot.notification.NotificationService;
+import org.nikos.vplanbot.org.nikos.vplanbot.notification.TwitterNotificationService;
+
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.NoSuchFileException;
-import java.nio.file.DirectoryNotEmptyException;
-import java.security.MessageDigest;
-import java.util.*;
+import java.text.MessageFormat;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Date;
 
-public class VplanBot {
-    public static void main(String[] args) {
+public class Vplanbot {
 
-        //Download des aktuellen Vertretungsplans
-        Download();
+    private String notificationMessage;
 
-        //Vergleichen der beiden Dateien per Checksum
-        Checksum();
-    }
+    private final NotificationService notificationServiceGMail;
+    private final NotificationService notificationServiceTwitter;
 
-    private static void Download() {
-        //Diese Methode laedt den aktuellen Vertretungsplan herunter und speichert ihn ab.
-        System.out.println("Verbindung aufgebaut.");
+    private Vplanbot() {
         try {
-            URL url = new URL(File URL);
-            InputStream in = url.openStream();
-            OutputStream fos = new FileOutputStream("vplanTEMP");
+            byte[] encodedSubject =  Files.readAllBytes(Paths.get("config/subject.txt"));   //Betreff auslesen
+            final String subject = new String(encodedSubject, StandardCharsets.UTF_8);
 
-            int length = -1;
+            byte[] encodedMessage = Files.readAllBytes(Paths.get("config/message.txt"));    //Nachricht auslesen
+            this.notificationMessage = new String(encodedMessage, StandardCharsets.UTF_8);
 
-            byte[] buffer = new byte[1024];
+            DateFormat dateFormat = new SimpleDateFormat("[dd.MM - HH:mm]"); //[07.11. - 17:49]
+            Date date = new Date();
+            this.notificationMessage = notificationMessage + " " + '\n' + (dateFormat.format(date));
 
-            while ((length = in.read(buffer)) > -1) {
+            final String senderMailAddress = "sender@gmail.com";
+            final List<String> receiverMailAddresses = Collections.singletonList("receiver@whatever.de");
 
-                fos.write(buffer, 0, length);
+            this.notificationServiceGMail = new GMailNotificationService(
+                    senderMailAddress,
+                    receiverMailAddresses,
+                    subject,
+                    Paths.get("vplan.pdf"));
 
-            }
-            System.out.println("Verbindung getrennt.");
-            fos.close();
+            this.notificationServiceTwitter = new TwitterNotificationService();
 
-            in.close();
-        } catch (java.net.MalformedURLException e) {
-            System.err.println("Error: Vermutlich soll von einer ungueltigen URL heruntergeladen werden (MalformedURLException)");
-        } catch (java.io.IOException e) {
-            System.err.println("IOException");
-        }
-
-        System.out.println('\n' + "Aktueller Vertretungsplan heruntergeladen." + '\n');
-    }
-
-    private static void Checksum() {
-        //Diese Methode vergleicht die Checksums der beiden Dateien
-        try {
-            final MessageDigest md = MessageDigest.getInstance("MD5");
-            final byte[] fileBytes1 = Files.readAllBytes(Paths.get("vplan.pdf"));
-            final byte[] checksum1 = md.digest(fileBytes1);
-
-            md.reset();
-
-            final byte[] fileBytes2 = Files.readAllBytes(Paths.get("vplanTEMP"));
-            final byte[] checksum2 = md.digest(fileBytes2);
-
-            if (Arrays.equals(checksum1, checksum2)) {
-
-                //Die Dateien sind gleich -> Der Plan wurde nicht verändert
-                SameAction();
-
-            } else {
-
-                //Die Dateien sind unterschiedlich -> Der Plan wurde veraendert
-                ChangeAction();
-
-            }
-
-        } catch (java.security.NoSuchAlgorithmException e) {
-            System.err.println("Error: NoSuchAlgorithmException");
-        } catch (java.io.IOException e) {
-            System.err.println("Error: Vermutlich ist keine Datei mit dem Namen 'vplan.pdf' im Verzeichnis oder der Plan wurde nicht richtig (mit dem Namen 'vplanTEMP')heruntergeladen. (IOException)");
-        }
-    }
-
-    private static void Delete(String name) {
-        //Diese Methode loescht eine Datei.
-        try {
-            Files.delete(Paths.get(name));
-        } catch (NoSuchFileException e) {
-            System.err.println("Error: Vermutlich existiert keine Datei mit dem Namen '" + name + "' (IOException)");
-        } catch (DirectoryNotEmptyException e) {
-            System.err.println("Error: Vermutlich wird versucht ein nicht leeres Verzeichnis zu löschen (DirectoryNotEmptyException)");
         } catch (IOException e) {
-            System.err.println("Error: IOException");
+            throw new RuntimeException("Could not read subject and/or message files.", e);
         }
     }
 
-    private static void Rename(String altName, String neuName) {
-        //Diese Methode aendert den Namen einer Datei von altName.pdf zu neuName.pdf
-        try {
-            Path source = Paths.get(altName);
-            Files.move(source, source.resolveSibling(neuName));
-        } catch (java.io.IOException e) {
-            System.err.println("Error: IOException");
-        }
-    }
+    private void run() {
+        final Path existingFile = Paths.get("vplan.pdf");
+        final Path newFile = downloadFile();
 
-    private static void SameAction() {
+        final List<byte[]> checksums = MD5FileDigestor.digestFiles(Arrays.asList(existingFile, newFile));
 
-        System.out.println("\u001B[33m" + "Keine Aenderung gefunden!");
+        if (ChecksumComparator.compareChecksums(checksums)) {
+            //Beide Dateien sind gleich -> Der Plan nicht veraendert.
+            System.out.println('\n' + "\u001B[33m" + "Keine Aenderung gefunden!");
 
-        //Temporäre Datei loeschen
-        Delete("vplanTEMP");
+            //Heruntergeladenen Plan loeschen, da er nicht anders ist
+            try {
+                Files.delete(newFile);
+                System.out.println("Temporaere Datei geloescht.");
+            } catch (IOException e) {
+                final String errorMessage = MessageFormat.format("Could not delete file {0}. Reason: {1}", newFile, e.getLocalizedMessage());
+                System.err.println(errorMessage);
+                e.printStackTrace();
+            }
+        } else {
+            //Die Dateien sind unterschiedlich -> Der Plan wurde veraendert
+            System.out.println('\n' + "\u001B[36m" + "Aenderung gefunden!");
+            replaceFile(existingFile, newFile);
 
-        System.out.println("Temporäre Datei gelöscht.");
-
-    }
-
-    private static void ChangeAction() {
-
-        System.out.println("\u001B[36m" + "Aenderung gefunden!");
-
-        //Alten, nicht aktuellen Plan loeschen
-        Delete("vplan.pdf");
-
-        //temporaeren Plan umbennennen -> alten Plan aktualisieren
-        Rename("vplanTEMP", "vplan.pdf");
-        System.out.println("\u001B[34m" + "vplan.pdf" + "\u001B[36m" + " aktualisiert." + "\u001B[0m" + '\n');
-
-        //E-Mail Benachrichtigung
-        try {
-            SendMail newMail = new SendMail("receiver@web.de");
+            //Mail Benachrichtigung
+            notificationServiceGMail.sendNotification(this.notificationMessage);
             System.out.println('\n' + "\u001B[36m" + "E-Mail Benachrichtigung verschickt.");
 
-        } catch (IOException e) {
-            System.err.println("Error: IOException");
+            notificationServiceTwitter.sendNotification(this.notificationMessage);
+            System.out.println('\n' + "\u001B[36m" + "Twitter Benachrichtigung verschickt.");
         }
-
-        //Tweet Benachrichtigung
-        /*Tweet tweet = new Tweet("Neuer Vertretungsplan liegt vor!");
-        System.out.println('\n' + "\u001B[36m" + "Tweet verschickt.");
-        */
-
-
     }
 
+    private void replaceFile(Path existingFile, Path newFile) {
+        //Alten, nicht aktuellen Plan loeschen
+        try {
+            Files.delete(existingFile);
+            Files.move(newFile, newFile.resolveSibling(existingFile.getFileName()));
+        } catch (IOException e) {
+            final String errorMessage = MessageFormat.format("Could not replace file {0} with file {1}. Reason: {2}", existingFile, newFile, e.getLocalizedMessage());
+            System.err.println(errorMessage);
+            e.printStackTrace();
+        }
+        System.out.println("\u001B[34m" + "vplan.pdf" + "\u001B[36m" + " aktualisiert." + "\u001B[0m" + '\n');
+    }
+
+    private Path downloadFile() {
+        final String fileToDownload = "URL to vplan.pdf";
+        try {
+            final URL fileUrl = new URL(fileToDownload);
+            final FileDownloader downloader = new FileDownloader(fileUrl, Paths.get("vplanTEMP.pdf"));
+            return downloader.download();
+        } catch (MalformedURLException e) {
+            throw new RuntimeException("URL is malformed: " + fileToDownload, e);
+        } catch (IOException e) {
+            throw new RuntimeException("Could not download file at URL " + fileToDownload, e);
+        }
+    }
+
+    public static void main(String[] args) {
+        new Vplanbot().run();
+    }
 }
