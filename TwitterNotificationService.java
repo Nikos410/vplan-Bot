@@ -12,10 +12,10 @@ public class TwitterNotificationService implements NotificationService {
 
     public TwitterNotificationService(){
 
-        final String consumerKey = "NWuSWNq9rhHQ3cRFTh2u76sCn";
-        final String consumerSecret = "hiXIJGqGUP0ov8uQvOpHgnLc2DMu2UTvI6vxURxlNgbzGoyrJD";
-        final String accessToken = "795359608034512897-kX8nNVAp0ZVyYHVra5MCyHCbTYBhpP5";
-        final String accessSecret = "Xk8A8p8Bgz6QloDOqYYGGyyWcW0TDICqe8YvsiKp4Fuce";
+        final String consumerKey = "****";
+        final String consumerSecret = "****";
+        final String accessToken = "********";
+        final String accessSecret = "****";
 
         cb = new ConfigurationBuilder();
         cb.setDebugEnabled(true)
