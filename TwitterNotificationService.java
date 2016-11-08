@@ -15,7 +15,7 @@ public class TwitterNotificationService implements NotificationService {
         final String consumerKey = "****";
         final String consumerSecret = "****";
         final String accessToken = "********";
-        final String accessSecret = "****";
+        final String accessSecret = "********";
 
         cb = new ConfigurationBuilder();
         cb.setDebugEnabled(true)
