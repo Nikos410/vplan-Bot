@@ -6,7 +6,7 @@
 
     <groupId>org.nikos</groupId>
     <artifactId>vplanbot</artifactId>
-    <version>3.0-TwitterGmail</version>
+    <version>4.2-TwitterGmailTimer</version>
 
     <build>
         <plugins>
