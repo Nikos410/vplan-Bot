@@ -1,4 +1,5 @@
 package org.nikos.vplanbot;
+
 /**
  * Danke an Sebastian K. !
  *
@@ -33,11 +34,14 @@ public class Vplanbot {
     private static final int standardTimerPeriod = 600000; //600000 -> 600 Sekunden -> 10 Minuten
     private final int timerPeriod;
 
-    private String notificationMessage;
-    private String notificationSubject;
+    private final String notificationMessage;
+    private final String notificationSubject;
 
-    private final NotificationService notificationServiceGMail;
-    private final NotificationService notificationServiceTwitter;
+    private final String senderMailAddress = "lightningcrafter410@gmail.com";
+    private final List<String> receiverMailAddresses = Collections.singletonList("nikos.epping@web.de");
+
+    private NotificationService notificationServiceGMail;
+    private NotificationService notificationServiceTwitter;
 
     private Vplanbot(String[] timerPeriodArgs) {
 
@@ -57,22 +61,20 @@ public class Vplanbot {
             final byte[] encodedMessage = Files.readAllBytes(Paths.get("config/message.txt"));    //Nachricht auslesen
             notificationMessage = new String(encodedMessage, StandardCharsets.UTF_8);
 
-            final String senderMailAddress = "****@****.***";
-            final List<String> receiverMailAddresses = Collections.singletonList("****@****.***");
-
-            System.out.println( "\u001B[36m" + "Config:" + "\u001B[0m" + '\n' +
-                                "\u001B[36m" + "Timer Periodendauer: " + "\u001B[0m" + timerPeriod/1000 + " Sekunden" + '\n' +
-                                "\u001B[36m" + "Betreff: " + "\u001B[0m" + this.notificationSubject + '\n' +
-                                "\u001B[36m" + "Nachricht: " + "\u001B[0m" + this.notificationMessage + '\n' +
-                                "\u001B[36m" + "Absender Mail-Adresse: " + "\u001B[0m" + senderMailAddress + '\n' +
-                                "\u001B[36m" + "Empfänger Mail-Adresse(n): " + "\u001B[0m" + receiverMailAddresses + '\n');
-
+            //GMail Benachrichtigung einrichten
             this.notificationServiceGMail = new GMailNotificationService(
                     senderMailAddress,
                     receiverMailAddresses,
                     Paths.get("vplan.pdf"));
 
-            this.notificationServiceTwitter = new TwitterNotificationService();
+            //Konfiguration ausgeben
+            System.out.println( '\n' +
+                                "\u001B[36m" + "Config:" + "\u001B[0m" + '\n' +
+                                "\u001B[36m" + "Timer Periodendauer: " + "\u001B[0m" + timerPeriod/1000 + " Sekunden" + '\n' +
+                                "\u001B[36m" + "Betreff: " + "\u001B[0m" + this.notificationSubject + '\n' +
+                                "\u001B[36m" + "Nachricht: " + "\u001B[0m" + this.notificationMessage + '\n' +
+                                "\u001B[36m" + "Absender Mail-Adresse: " + "\u001B[0m" + senderMailAddress + '\n' +
+                                "\u001B[36m" + "Empfänger Mail-Adresse(n): " + "\u001B[0m" + receiverMailAddresses);
 
         } catch (IOException e) {
             throw new RuntimeException("Could not readArea subject and/or message files.", e);
@@ -109,7 +111,7 @@ public class Vplanbot {
         System.out.println('\n' + "Vertretungsplan wird überprüft! " + DateReader.date("[dd.MM. - HH:mm:ss]"));
 
         final Path existingFile = Paths.get("vplan.pdf");
-        final Path newFile = downloadFile("website.de/plan/vplan.pdf");
+        final Path newFile = downloadFile("http://kapu-bocholt.de/plan/vplan.pdf");
 
         final List<byte[]> checksums = MD5FileDigestor.digestFiles(Arrays.asList(existingFile, newFile));
 
@@ -131,15 +133,7 @@ public class Vplanbot {
             System.out.println("\u001B[36m" + "Aenderung gefunden!" + "\u001B[0m");
             replaceFile(existingFile, newFile);
 
-            final String dateNotificationMessage = notificationMessage + " " + '\n' + DateReader.date("[dd.MM. - HH:mm]");
-
-            //Twitter Benachrichtung (Standard Text, für alle)
-            notificationServiceTwitter.sendNotification(dateNotificationMessage);
-            System.out.println('\n' + "\u001B[36m" + "Twitter Benachrichtigung verschickt." + "\u001B[0m");
-
-            //Mail Benachrichtigung
-            notificationServiceGMail.sendNotification(dateNotificationMessage, this.notificationSubject);
-            System.out.println('\n' + "\u001B[36m" + "E-Mail Benachrichtigung verschickt." + "\u001B[0m");
+            newNotification();
         }
     }
 
@@ -154,6 +148,24 @@ public class Vplanbot {
             e.printStackTrace();
         }
         System.out.println("\u001B[34m" + "vplan.pdf" + "\u001B[36m" + " aktualisiert." + "\u001B[0m" + '\n');
+    }
+
+    private void newNotification() {
+        System.out.println("\u001B[36m" + "Benachrichtigungen werden versendet." + "\u001B[0m");
+
+        //neue Twitter-Benachrichtigung erstellen
+        this.notificationServiceTwitter = new TwitterNotificationService();
+
+        //aktuelles Datum an die Nachricht anhängen
+        final String dateNotificationMessage = this.notificationMessage + " " + '\n' + DateReader.date("[dd.MM. - HH:mm]");
+
+        //Twitter Benachrichtung abschicken
+        notificationServiceTwitter.sendNotification(dateNotificationMessage);
+        System.out.println('\n' + "\u001B[36m" + "Twitter Benachrichtigung verschickt." + "\u001B[0m" + '\n');
+
+        //Mail Benachrichtigung abschicken
+        notificationServiceGMail.sendNotification(dateNotificationMessage, this.notificationSubject);
+        System.out.println("\u001B[36m" + "E-Mail Benachrichtigung verschickt." + "\u001B[0m");
     }
 
     private Path downloadFile(String url) {
