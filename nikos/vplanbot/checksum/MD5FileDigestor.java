@@ -1,4 +1,4 @@
-package org.nikos.vplanbot.org.nikos.vplanbot.checksum;
+package nikos.vplanbot.checksum;
 
 import java.io.IOException;
 import java.nio.file.Files;
