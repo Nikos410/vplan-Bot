@@ -1,0 +1,1 @@
+Nachricht, die getwittert und per Mail geschickt werden soll
