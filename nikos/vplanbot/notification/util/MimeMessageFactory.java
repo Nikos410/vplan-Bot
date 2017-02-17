@@ -1,4 +1,4 @@
-package org.nikos.vplanbot.org.nikos.vplanbot.notification.util;
+package nikos.vplanbot.notification.util;
 
 import javax.activation.DataHandler;
 import javax.activation.DataSource;
