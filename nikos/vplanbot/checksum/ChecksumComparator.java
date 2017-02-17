@@ -1,4 +1,4 @@
-package org.nikos.vplanbot.org.nikos.vplanbot.checksum;
+package nikos.vplanbot.checksum;
 
 import java.util.Arrays;
 import java.util.List;
