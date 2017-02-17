@@ -1,4 +1,4 @@
-package org.nikos.vplanbot.org.nikos.vplanbot.notification;
+package nikos.vplanbot.notification;
 
 import twitter4j.Status;
 import twitter4j.Twitter;
