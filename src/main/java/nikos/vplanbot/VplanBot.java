@@ -126,10 +126,31 @@ public class Vplanbot {
     }
 
     private void run() {
-        this.checkChange();
-
         // Timer erinrichten und starten
         timer.scheduleAtFixedRate(new Task(), timerPeriod, timerPeriod);
+
+        // überprüfen, ob Datei vorhanden ist
+        if (Files.exists(vplanFile) && !Files.isDirectory(vplanFile)) {
+            // Datei existiert
+            this.checkChange();
+        }
+        else {
+            // Datei existiert nicht
+            System.out.println( '\n' + "\u001B[33m" + "[Hinweis]" +
+                    "\u001B[0m" + " Es befindet sich keine Datei mit dem Namen '" +
+                    "\u001B[33m" + vplanFile.getFileName() +
+                    "\u001B[0m" + "' im Verzeichnis '" +
+                    "\u001B[33m" + vplanFile.getParent() +
+                    "\u001B[0m" + "'!");
+
+            downloadFile(vplanURL, vplanFile);  // Plan herunterladen
+            archiveFile(vplanFile, vplanArchiveDirectory);  // Plan mit Timestamp versehen und ins Archiv kopieren
+
+            System.out.println("\u001B[33m" + "[Hinweis]" +
+                    "\u001B[0m" + " Datei '" +
+                    "\u001B[33m" + vplanFile.getFileName() +
+                    "\u001B[0m" + "' wurde heruntergeladen.");
+        }
 
         // Programm laufen lassen bis es abgebrochen wird
         try {
